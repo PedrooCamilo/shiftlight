@@ -12,7 +12,7 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico CACHE STRING "Board type")
+set(PICO_BOARD pico_w CACHE STRING "Board type")
 
 cmake_minimum_required(VERSION 3.13)
 
@@ -44,18 +44,31 @@ add_executable(shift_light
     shift_light.c
     inc/ssd1306_i2c.c
     play_audio.c  # Adiciona o arquivo da biblioteca ssd1306
+    st7789_lcd_pio.c
+    lv_port_disp.c
 )
+
+pico_generate_pio_header(shift_light ${CMAKE_CURRENT_LIST_DIR}/ws2818b.pio)
+pico_generate_pio_header(shift_light ${CMAKE_CURRENT_LIST_DIR}/st7789_lcd.pio)
 
 # Definindo nome e versão do programa
 pico_set_program_name(shift_light "shift_light")
 pico_set_program_version(shift_light "0.1")
 
-# Gerar cabeçalho do PIO
-pico_generate_pio_header(shift_light ${CMAKE_CURRENT_LIST_DIR}/ws2818b.pio)
-
 # Configuração de saída via USB/UART
 pico_enable_stdio_uart(shift_light 0)
 pico_enable_stdio_usb(shift_light 1)
+
+# Diretórios de inclusão
+target_include_directories(shift_light PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/inc  # Adiciona o diretório da biblioteca ssd1306
+)
+
+add_subdirectory(lvgl) # jrfo - added
+set(LV_LVGL_H_SIMPLE_INCLUDE ON) # jrfo - added
+set(LV_CONF_INCLUDE_SIMPLE ON) # jrfo - added
+add_subdirectory(ui) # jrfo - added
 
 # Adicionando bibliotecas necessárias
 target_link_libraries(shift_light
@@ -70,13 +83,11 @@ target_link_libraries(shift_light
     hardware_i2c  # Adiciona suporte para I2C (necessário para o display OLED)
     hardware_adc  # Adiciona suporte para ADC (necessário para o joystick)
     hardware_pwm  # Adiciona suporte para PWM (se necessário)
+    lvgl::lvgl
+    ui
 )
 
-# Diretórios de inclusão
-target_include_directories(shift_light PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${CMAKE_CURRENT_LIST_DIR}/lib  # Adiciona o diretório da biblioteca ssd1306
-)
+target_link_options(shift_light PRIVATE "-u_printf_float" "-u_scanf_float")
 
 # Adiciona os arquivos de saída extras (UF2, BIN, HEX)
 pico_add_extra_outputs(shift_light)
