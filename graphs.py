@@ -19,7 +19,6 @@ def analisar_log(nome_arquivo):
     dados.set_index('Timestamp', inplace=True)
 
     # Cria uma figura e um conjunto de subplots. 4 gráficos, 1 coluna.
-    # sharex=True faz com que todos os gráficos compartilhem o mesmo eixo X (tempo)
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
     fig.suptitle(f'Análise de Performance - {nome_arquivo}', fontsize=16)
 

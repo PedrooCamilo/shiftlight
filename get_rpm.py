@@ -1,14 +1,9 @@
-# Versão Final - Sistema de Telemetria Veicular
-# Autor: Pedro Camilo (com assistência do Gemini)
-# Data: 28 de agosto de 2025
-
 import asyncio
 import serial
 from bleak import BleakClient
-import csv  # <-- ADICIONE
-import datetime # <-- ADICIONE
+import csv  
+import datetime 
 
-# --- Configurações ---
 DEVICE_ADDRESS = "88:1B:99:67:5B:38"
 UUID_WRITE = "0000fff2-0000-1000-8000-00805f9b34fb"
 UUID_NOTIFY = "0000fff1-0000-1000-8000-00805f9b34fb"
@@ -19,28 +14,25 @@ BAUD_RATE = 115200
 AIR_FUEL_RATIO = 14.7  # g de ar / g de gasolina
 GASOLINE_DENSITY_G_PER_L = 750.0 # g/L
 
-# --- Constantes Físicas para Cálculo de Consumo (Método Speed-Density) ---
+# --- Constantes Físicas para Cálculo de Consumo 
 ENGINE_DISPLACEMENT_L = 1.0  # Cilindrada do motor em Litros (1.0 para o Up TSI)
-VOLUMETRIC_EFFICIENCY = 0.90 # Eficiência volumétrica estimada (90% é um bom valor para turbo)
+VOLUMETRIC_EFFICIENCY = 0.90 # Eficiência volumétrica estimada 
 AIR_FUEL_RATIO = 14.7        # g de ar / g de gasolina
 GASOLINE_DENSITY_G_PER_L = 750.0 # g/L
 
-# --- Variáveis globais para armazenar os últimos valores lidos ---
 last_rpm = 0
-last_iat_celsius = 25 # Começa com um valor padrão
-last_speed = 0 # Adicione se não tiver
-last_fuel_lph = 0.0 # Adicione se não tiver
-last_coolant_temp = 0       ## NEW
-last_timing_advance = 0     ## NEW
-last_commanded_afr = 0      ## NEW
+last_iat_celsius = 25 
+last_speed = 0 
+last_fuel_lph = 0.0 
+last_coolant_temp = 0       
+last_timing_advance = 0     
+last_commanded_afr = 0      
 
-# --- Variáveis do Datalogger ---
 datalog_active = False
 csv_file = None
 csv_writer = None
 
 
-# --- Conexão Serial ---
 try:
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
     print(f"✅ Serial conectado em {SERIAL_PORT} a {BAUD_RATE} baud")
@@ -59,7 +51,6 @@ def write_log_entry():
             last_iat_celsius,
             round(last_fuel_lph, 2)
         ])
-# --- Funções de Comunicação ---
 def send_serial(tag,value):
     if ser and ser.is_open:
         try:
@@ -73,7 +64,6 @@ async def read_obd_data(client, command):
     await client.write_gatt_char(UUID_WRITE, command.encode())
 
 
-# --- Funções de Processamento de Dados (Parsers) ---
 def parse_rpm(response_str):
     global last_rpm
     try:
@@ -120,23 +110,17 @@ def parse_map_and_calc_fuel(response_str):
         parts = response_str.split()
         print(f"las_rpm{last_rpm}")
         if response_str.startswith("41 0B") and len(parts) >= 3:
-            map_kpa = int(parts[2], 16) # Pressão em kPa
+            map_kpa = int(parts[2], 16) 
             print(f"map_kpa{map_kpa}")
             
-            # Converte temperatura de Celsius para Kelvin
             iat_kelvin = last_iat_celsius + 273.15
             print(f"IAT_KELVIN{iat_kelvin}")
             
-            # Calcula a massa de ar admitida por ciclo (g/ciclo)
-            # Constante R para ar seco é ~287 J/(kg*K)
             air_mass = (map_kpa * 1000 * ENGINE_DISPLACEMENT_L / 1000 * VOLUMETRIC_EFFICIENCY) / (287.05 * iat_kelvin)
             air_mass_grams = air_mass * 1000
             
-            # Calcula o fluxo de massa de ar (g/s)
-            # Motor 4 tempos -> 2 rotações por ciclo de admissão
             maf_calc_g_per_sec = (air_mass_grams * last_rpm) / 120.0
             
-            # Usa o mesmo cálculo de antes para obter L/h
             fuel_g_per_sec = maf_calc_g_per_sec / AIR_FUEL_RATIO
             fuel_l_per_sec = fuel_g_per_sec / GASOLINE_DENSITY_G_PER_L
             fuel_l_per_hour = fuel_l_per_sec * 3600
@@ -149,42 +133,32 @@ def parse_map_and_calc_fuel(response_str):
         print(f"⚠️ Erro ao processar MAP/Consumo: {e}")
 
 def parse_engine_coolant_temp(response_str):
-    ## NEW FUNCTION
     global last_coolant_temp
     try:
         parts = response_str.split()
         if len(parts) >= 3:
-            # Formula: A - 40
             temp_c = int(parts[2], 16) - 40
             print(f"💧 Temp. Arrefecimento: {temp_c}°C")
             last_coolant_temp = temp_c
-            # You can add a new serial tag if you want to display this on your dashboard
-            # send_serial(5, temp_c)
     except Exception as e:
         print(f"⚠️ Erro ao processar ECT: {e}")
 
 def parse_timing_advance(response_str):
-    ## NEW FUNCTION
     global last_timing_advance
     try:
         parts = response_str.split()
         if len(parts) >= 3:
-            # Formula: (A / 2) - 64
             advance = (int(parts[2], 16) / 2) - 64
             print(f"⚡ Avanço de Ignição: {advance:.1f}°")
             last_timing_advance = advance
-            # send_serial(6, advance)
     except Exception as e:
         print(f"⚠️ Erro ao processar Avanço de Ignição: {e}")
 
 def parse_commanded_afr(response_str):
-    ## NEW FUNCTION
     global last_commanded_afr
     try:
         parts = response_str.split()
         if len(parts) >= 4:
-            # Formula for Commanded Equivalence Ratio: ((A * 256) + B) / 32768
-            # Then AFR = Ratio * 14.7 (for gasoline)
             ratio = ((int(parts[2], 16) * 256) + int(parts[3], 16)) / 32768
             afr = ratio * 14.7
             print(f"⛽ AFR Comandado: {afr:.2f}:1")
@@ -194,7 +168,6 @@ def parse_commanded_afr(response_str):
         print(f"⚠️ Erro ao processar AFR Comandado: {e}")
 
 
-# --- Roteador de Notificações ---
 def notification_handler(sender, data):
     try:
         response_str = data.decode('utf-8').strip()
@@ -220,11 +193,9 @@ def notification_handler(sender, data):
         parse_commanded_afr(response_str)
 
 
-# --- Loop Principal e Execução ---
 async def main_loop(client):
     monitoring_active = True 
     while client.is_connected:
-        # --- SEÇÃO DE COMANDOS DO PICO ---
         if ser and ser.in_waiting > 0:
             try:
                 pico_command = ser.readline().decode('utf-8').strip()
@@ -232,15 +203,13 @@ async def main_loop(client):
                     start_datalogging()
                 elif pico_command == "STOP_LOG":
                     stop_datalogging()
-                # Adicione outros elifs aqui para futuros comandos (como REQ_DTC)
 
             except Exception as e:
                 print(f"Erro ao ler comando do Pico: {e}")
-        # --- SEÇÃO DE LEITURA DE DADOS ---
         if monitoring_active:
 
             await read_obd_data(client, "010C\r")
-            await asyncio.sleep(0.02)  # Pausa para estabilidade
+            await asyncio.sleep(0.02)  
 
             await read_obd_data(client, "010F\r")
             await asyncio.sleep(0.1)
@@ -250,24 +219,22 @@ async def main_loop(client):
             await read_obd_data(client, "010B\r")
             await asyncio.sleep(0.1)
 
-            await read_obd_data(client, "0105\r") # Engine Coolant Temp ## NEW
+            await read_obd_data(client, "0105\r") 
             await asyncio.sleep(0.02)
                 
-            await read_obd_data(client, "010E\r") # Timing Advance ## NEW
+            await read_obd_data(client, "010E\r") 
             await asyncio.sleep(0.02)
 
-            await read_obd_data(client, "0144\r") # Commanded AFR ## NEW
+            await read_obd_data(client, "0144\r") 
             await asyncio.sleep(0.02)
 
 
             write_log_entry()
 
-        # await read_obd_data(client, "0142\r")
-        # await asyncio.sleep(0.2)
 def start_datalogging():
     """Inicia uma nova gravação de log."""
     global datalog_active, csv_file, csv_writer
-    if datalog_active: # Se já estiver gravando, não faz nada
+    if datalog_active: 
         return
 
     datalog_active = True
@@ -280,7 +247,7 @@ def start_datalogging():
 def stop_datalogging():
     """Para a gravação de log atual."""
     global datalog_active, csv_file, csv_writer
-    if not datalog_active: # Se não estiver gravando, não faz nada
+    if not datalog_active: 
         return
 
     datalog_active = False

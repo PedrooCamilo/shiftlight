@@ -2,18 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-from scipy.signal import savgol_filter # <--- NOVA IMPORTAÇÃO
+from scipy.signal import savgol_filter 
 
-# ----------------------------------------------------------------------------
-# --- DADOS DO VEÍCULO (PREENCHA AQUI!) ---
-# ----------------------------------------------------------------------------
 MASSA_TOTAL_KG = 1060.0       # Peso do carro + ocupantes + combustível (em kg)
 AREA_FRONTAL_M2 = 2.08        # Área frontal do carro (em m²)
 COEF_ARRASTO_CD = 0.367        # Coeficiente de arrasto aerodinâmico (Cd)
 COEF_ATRITO_ROLAMENTO = 0.015 # Coeficiente de atrito de rolamento (pneus)
 RAIO_RODA_M = 0.301           # Raio da roda com pneu (em metros)
 
-# --- DADOS DA TRANSMISSÃO (PESQUISE OS VALORES PARA SEU CARRO) ---
 # Valores de exemplo para um VW Up! TSI
 RELACAO_DIFERENCIAL = 3.625
 RELACAO_MARCHAS = {
@@ -23,7 +19,6 @@ RELACAO_MARCHAS = {
     4: 1.03,
     5: 0.81
 }
-# ----------------------------------------------------------------------------
 
 # Constantes Físicas
 DENSIDADE_AR_KG_M3 = 1.225
@@ -34,7 +29,6 @@ def calcular_potencia_torque(dados, marcha_usada):
     
     dados = dados.copy()
     
-    # Interpolação para criar um sinal mais suave
     tempo_inicio = dados.index[0]
     tempo_fim = dados.index[-1]
     novo_indice_tempo = pd.to_datetime(np.arange(tempo_inicio.value, tempo_fim.value, 10_000_000))
@@ -63,7 +57,7 @@ def calcular_potencia_torque(dados, marcha_usada):
     potencia_watts = dados['Forca_Motor_N'] * dados['Velocidade_ms']
     dados['Potencia_cv'] = potencia_watts / 735.5
     
-    # --- CÁLCULO CORRETO DO TORQUE DO MOTOR ---
+    # cálculo do Torque do motor
     torque_na_roda_Nm = dados['Forca_Motor_N'] * RAIO_RODA_M
     relacao_total = RELACAO_DIFERENCIAL * RELACAO_MARCHAS[marcha_usada]
     dados['Torque_Motor_Nm'] = torque_na_roda_Nm / relacao_total
@@ -73,7 +67,6 @@ def calcular_potencia_torque(dados, marcha_usada):
 def plotar_grafico_dino(dados, nome_arquivo):
     """Gera um gráfico estilo dinamômetro com Potência e Torque vs RPM."""
     
-    # --- FILTRAGEM DE DADOS MELHORADA ---
     # Remove valores negativos/irreais e acelerações negativas
     dados_plot = dados[(dados['Potencia_cv'] > 0) & 
                        (dados['RPM'] > 1500) & 
@@ -83,9 +76,7 @@ def plotar_grafico_dino(dados, nome_arquivo):
         print("⚠️ Não há dados suficientes para plotar o gráfico após a filtragem.")
         return
 
-    # --- SUAVIZAÇÃO AVANÇADA (SAVITZKY-GOLAY) ---
     # Aplica um filtro suave nas curvas finais para um visual limpo
-    # O valor 21 (window_length) deve ser ímpar. 3 (polyorder) é a ordem do polinômio.
     dados_plot['Potencia_suave_cv'] = savgol_filter(dados_plot['Potencia_cv'], 21, 3)
     dados_plot['Torque_suave_Nm'] = savgol_filter(dados_plot['Torque_Motor_Nm'], 21, 3)
     
@@ -128,7 +119,6 @@ if __name__ == "__main__":
         
         print("\nPara uma análise precisa, analise uma puxada em UMA ÚNICA MARCHA.")
         
-        # --- PERGUNTA QUAL MARCHA FOI USADA ---
         marcha = int(input("Qual marcha foi usada na puxada (2, 3, 4, etc.)? "))
         if marcha not in RELACAO_MARCHAS:
             print("❌ Marcha inválida!")

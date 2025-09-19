@@ -1,7 +1,7 @@
 /**
  * @file shift_light.c
- * @author Pedro Camilo (com assistência do Gemini)
- * @brief Versão final do firmware para o Sistema de Telemetria Veicular (com menu interativo e dual-core)
+ * @author Pedro Camilo e Maria Eduarda
+ * @brief Versão final do firmware para o Sistema de Telemetria Veicular 
  * @version 2.7
  * @date 2025-09-08
  *
@@ -84,8 +84,8 @@ lv_obj_t *ui_rpm_label, *ui_iat_label, *ui_speed_label;
 lv_obj_t *ui_coolant_label, *ui_timing_label, *ui_afr_label;
 lv_obj_t *ui_menu_title, *ui_menu_item1, *ui_menu_item2, *ui_menu_item3, *ui_menu_item4;
 lv_obj_t *ui_status_label;
-lv_obj_t *ui_alert_screen; // <- Novo
-lv_obj_t *ui_alert_label;  // <- Novo
+lv_obj_t *ui_alert_screen; 
+lv_obj_t *ui_alert_label;  
 
 // PROTÓTIPOS DE FUNÇÕES
 void npSetLED(const uint index, const uint8_t r, const uint8_t g, const uint8_t b);
@@ -396,7 +396,7 @@ void create_ui(void) {
     lv_obj_set_style_text_color(ui_rpm_label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(ui_rpm_label, LV_ALIGN_TOP_LEFT, 20, 20);
 
-    // Reposicionando os labels antigos e adicionando os novos
+    
     ui_iat_label = lv_label_create(ui_data_screen);
     lv_obj_set_style_text_font(ui_iat_label, &lv_font_montserrat_22, 0);
     lv_obj_set_style_text_color(ui_iat_label, lv_color_hex(0x00BFFF), 0);
@@ -407,7 +407,6 @@ void create_ui(void) {
     lv_obj_set_style_text_color(ui_speed_label, lv_color_hex(0x32CD32), 0);
     lv_obj_align(ui_speed_label, LV_ALIGN_TOP_LEFT, 20, 85); // Posição Y ajustada
 
-    // <-- CRIAÇÃO DOS NOVOS LABELS -->
     ui_coolant_label = lv_label_create(ui_data_screen);
     lv_obj_set_style_text_font(ui_coolant_label, &lv_font_montserrat_22, 0);
     lv_obj_set_style_text_color(ui_coolant_label, lv_color_hex(0xFF6347), 0); // Cor Tomate
@@ -424,7 +423,6 @@ void create_ui(void) {
     lv_obj_align(ui_afr_label, LV_ALIGN_TOP_LEFT, 20, 160);
 
 
-    // --- CRIAÇÃO DA TELA DE ALERTA ---
     ui_alert_screen = lv_obj_create(lv_screen_active());
     lv_obj_set_size(ui_alert_screen, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(ui_alert_screen, lv_color_hex(0xFF0000), 0); // Fundo vermelho
@@ -436,7 +434,6 @@ void create_ui(void) {
     lv_obj_set_style_text_color(ui_alert_label, lv_color_hex(0xFFFFFF), 0);
     lv_label_set_text(ui_alert_label, "ALERTA!");
     lv_obj_center(ui_alert_label);
-    // --- FIM DA TELA DE ALERTA ---
 
     ui_menu_screen = lv_obj_create(screen);
     lv_obj_set_size(ui_menu_screen, LV_PCT(100), LV_PCT(100));
@@ -476,17 +473,17 @@ void create_ui(void) {
 
 void check_for_alerts() {
     if (global_iat > MAX_IAT_TEMP) {
-        if (!alert_active) { // Ativa o alerta apenas uma vez
+        if (!alert_active) { 
             alert_active = true;
             snprintf((char*)alert_message, sizeof(alert_message), "IAT ALTA: %d C", global_iat);
         }
     } else {
-        // Se a condição de alerta sumiu, reseta
+      
         if (alert_active) {
             alert_active = false;
         }
     }
-    // Adicione outros 'else if' aqui para mais sensores
+
 }
 
 bool read_line_from_stdio(char* buffer, int max_len) {
@@ -524,7 +521,6 @@ int getIndex(int x, int y) {
 }
 
 void calculate_instant_consumption() {
-    // Para evitar divisão por zero e leituras estranhas em baixa velocidade
     if (global_speed > 2 && global_fuel_rate_lph > 0.05) {
         global_km_per_liter = global_speed / global_fuel_rate_lph;
     } else {
